@@ -1,20 +1,46 @@
 #include <Arduino.h>
 #include <MKRNB.h>
 
-// modem verification object
 NBModem modem;
 
 // IMEI variable
 String IMEI = "";
 
-void setup() {
+// baud rate used for both Serial ports
+unsigned long baud = 115200;
 
-  // initialize serial communications and wait for port to open:
-  Serial.begin(9600);
+void modem_test();
+
+void setup() {
+  // reset the ublox module
+  pinMode(SARA_RESETN, OUTPUT);
+  digitalWrite(SARA_RESETN, HIGH);
+  delay(100);
+  digitalWrite(SARA_RESETN, LOW);
+
+  Serial.begin(baud);
+  SerialSARA.begin(baud);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
-  // start modem test (reset and check response)
+  Serial.print("Starting modem test...");
+  if (modem.begin()) {
+    Serial.println("modem.begin() succeeded");
+  } else {
+    Serial.println("ERROR, no modem answer.");
+  }
+
+  modem_test();
+}
+
+void loop() {
+  if (Serial.available()) {
+    SerialSARA.write(Serial.read());
+  }
+
+  if (SerialSARA.available()) {
+    Serial.write(SerialSARA.read());
+  }
 }
 
 void modem_test() {
@@ -34,7 +60,7 @@ void modem_test() {
 
     // get and check IMEI one more time
     if (modem.getIMEI() != NULL) {
-      Serial.println("Modem is functioning properly");
+      Serial.println("Modem is functioning properly\n");
     } else {
       Serial.println("Error: getIMEI() failed after modem.begin()");
     }
