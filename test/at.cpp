@@ -7,7 +7,7 @@ NBModem modem;
 String IMEI = "";
 
 // baud rate used for both Serial ports
-unsigned long baud = 115200;
+unsigned long baud = 9600;
 
 void modem_test();
 

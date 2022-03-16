@@ -43,7 +43,7 @@ void setup() {
   uint32_t auto_clean;
 
   // Open serial communication and wait for port to open
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial);
 
   sensirion_i2c_init();
@@ -80,6 +80,7 @@ void setup() {
   MODEM.begin();
   while (!MODEM.noop());
   Serial.println("done.");
+  delay(10);
 
   Serial.print("Disconnecting from network...");
   MODEM.send("AT+COPS=2");
@@ -90,6 +91,7 @@ void setup() {
   MODEM.sendf("AT+URAT=%d", rat);
   MODEM.waitForResponse(2000);
   Serial.println("done.");
+  delay(10);
 
   Serial.print("Applying changes and saving configuration...");
   MODEM.send("AT+CFUN=15");
@@ -131,14 +133,17 @@ void setup() {
   MODEM.sendf("AT+COPS=1,2,\"%d\"", cops);
   MODEM.waitForResponse(4000);
   Serial.println("done.");
+  delay(10);
 
   // Check if connected and if not, reconnect
   if (nbAccess.status() != NB_READY || gprsAccess.status() != GPRS_READY) {
     connectNB();
   }
+  delay(10);
 
   // Initialize CoAP client
   coap.start();
+  delay(10);
 
   // Seed random number generator with noise from pin 0
   randomSeed(analogRead(0));
@@ -149,6 +154,7 @@ void loop() {
   if (nbAccess.status() != NB_READY || gprsAccess.status() != GPRS_READY) {
     connectNB();
   }
+  delay(10);
 
   Serial.print("Send packet to Telenor MIC...");
   sendPacket();
@@ -204,7 +210,7 @@ uint16_t sendPacket () {
    * and then use the "uplink transform" in the Thing Type to unpack it later
    * once the packet has been received in Telenor MIC.
    */
-  uint32_t buf_size = snprintf(buffer, 100, "{\"PM2.5\":%.2f,\"PM10\":%.2f,\"latlng\":\"59.898812,10.627212\"}", m.mc_2p5, m.mc_10p0);
+  uint32_t buf_size = snprintf(buffer, 100, "{\"pm2_5\":%.2f,\"pm10\":%.2f,\"latlng\":\"59.898812,10.627212\"}", m.mc_2p5, m.mc_10p0);
 
   // Send a CoAP POST message to Telenor IoT Gateway
   uint16_t msgid = coap.send(
