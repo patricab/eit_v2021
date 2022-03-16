@@ -10,7 +10,9 @@
 
 #define COAP_BUF_MAX_SIZE 1024
 
+#include <Arduino.h>
 #include <MKRNB.h>
+#include <sps30.h>
 
 #include "coap-simple.h"
 #include "arduino_secrets.h"
@@ -31,10 +33,36 @@ NBUDP     Udp;
 Coap      coap(Udp);
 IPAddress iotgw_ip(coap_ip);
 
+/* Forward function declarations */
+bool connectNB();
+uint16_t sendPacket();
+
 void setup() {
+  int16_t ret;
+  uint8_t auto_clean_days = 4;
+  uint32_t auto_clean;
+
   // Open serial communication and wait for port to open
   Serial.begin(115200);
   while (!Serial);
+
+  sensirion_i2c_init();
+
+  while (sps30_probe() != 0) {
+    Serial.print("SPS sensor probing failed\n");
+    delay(500);
+  }
+
+  ret = sps30_set_fan_auto_cleaning_interval_days(auto_clean_days);
+  if (ret) {
+    Serial.print("error setting the auto-clean interval: ");
+    Serial.println(ret);
+  }
+
+  ret = sps30_start_measurement();
+  if (ret < 0) {
+    Serial.print("error starting measurement\n");
+  }
 
   /**
    * Issue a series of AT commands to the modem.
@@ -146,9 +174,29 @@ bool connectNB() {
 }
 
 uint16_t sendPacket () {
-  // Generate random simulated data
-  float tmp = 20 + random(0, 9);
-  float hum = 60 + random(0, 9);
+  struct sps30_measurement m;
+  char serial[SPS30_MAX_SERIAL_LEN];
+  uint16_t data_ready;
+  int16_t ret;
+  
+  char buffer[100];
+
+  do {
+    ret = sps30_read_data_ready(&data_ready);
+    if (ret < 0) {
+      Serial.print("error reading data-ready flag: ");
+      Serial.println(ret);
+    } else if (!data_ready)
+      Serial.print("data not ready, no new measurement available\n");
+    else
+      break;
+    delay(100); /* retry in 100ms */
+  } while (1);
+
+  ret = sps30_read_measurement(&m);
+  if (ret < 0) {
+    Serial.print("error reading measurement\n");
+  }
 
   /**
    * Create a JSON payload.
@@ -156,8 +204,7 @@ uint16_t sendPacket () {
    * and then use the "uplink transform" in the Thing Type to unpack it later
    * once the packet has been received in Telenor MIC.
    */
-  char buffer[100];
-  uint32_t buf_size = snprintf(buffer, 100, "{\"tmp\":%.2f,\"hum\":%.2f,\"latlng\":\"59.898812,10.627212\"}", tmp, hum);
+  uint32_t buf_size = snprintf(buffer, 100, "{\"PM2.5\":%.2f,\"PM10\":%.2f,\"latlng\":\"59.898812,10.627212\"}", m.mc_2p5, m.mc_10p0);
 
   // Send a CoAP POST message to Telenor IoT Gateway
   uint16_t msgid = coap.send(
