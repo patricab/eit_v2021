@@ -217,7 +217,7 @@ uint16_t sendPacket () {
     iotgw_ip,           // IP address
     coap_port,          // Port
     coap_endpoint,      // CoAP endpoint
-    COAP_CON,           // CoAP packet type (con, noncon, ack, reset)
+    COAP_NONCON,        // CoAP packet type (con, noncon, ack, reset)
     COAP_POST,          // CoAP method
     NULL,               // CoAP token
     0,                  // CoAP token length
